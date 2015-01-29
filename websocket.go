@@ -38,9 +38,7 @@ type Msg struct {
 // websocket Conn and sends it to the Conns inbound channel
 // as strings
 func (c *Conn) reader() {
-	log.Print("Conn reader gorouting starting.")
 	defer func() {
-		log.Print("Conn reader gorouting stopping.")
 		close(c.Inbound)
 		c.ws.Close()
 	}()
@@ -56,7 +54,7 @@ func (c *Conn) reader() {
 		}
 		var m Msg
 		if err := json.Unmarshal(message, &m); err != nil {
-			log.Println(err.Error())
+			log.Println("can't unmarshal message:", err.Error())
 		}
 		c.callHandler(m)
 	}
@@ -64,7 +62,6 @@ func (c *Conn) reader() {
 
 // Write message as byte array to Conn, with messagetype
 func (c *Conn) write(mt int, payload []byte) error {
-	//log.Print("Conn.write() called")
 	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	return c.ws.WriteMessage(mt, payload)
 }
@@ -75,6 +72,7 @@ func (c *Conn) writer() {
 	log.Print("Conn writer gorouting starting.")
 	pingTicker := time.NewTicker(pingPeriod)
 	defer func() {
+		c.callHandler(Msg{Type: "disconnect"})
 		log.Print("Conn writer gorouting stopping.")
 		pingTicker.Stop()
 		close(c.Outbound)
@@ -90,14 +88,12 @@ func (c *Conn) writer() {
 			}
 			if err := c.write(websocket.TextMessage, []byte(message)); err != nil {
 				log.Println("[Conn.writePump] err: '", err, "'.")
-				c.callHandler(Msg{Type: "disconnect"})
 				return
 			}
 		// When pingTicker ticks, send a PingMessage to client.
 		case <-pingTicker.C:
 			if err := c.write(websocket.PingMessage, []byte("{\"type\":\"ping\"}")); err != nil {
 				log.Println("[Conn.writePump] pingTicker err: '", err, "'.")
-				log.Println("ping")
 				return
 			}
 		}
@@ -123,11 +119,9 @@ func (c *Conn) Send(msg Msg) {
 }
 
 func (c *Conn) callHandler(msg Msg) {
-	log.Println("got msg.type", msg.Type)
 	if c.EventHandlers[msg.Type] != nil {
 		for _, f := range c.EventHandlers[msg.Type] {
 			f(msg)
-			log.Println("called handler for msg.type", msg.Type)
 		}
 	}
 }
