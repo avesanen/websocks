@@ -2,9 +2,10 @@ package websocks
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
 	"log"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -27,11 +28,12 @@ type Conn struct {
 	Outbound      chan []byte
 	Inbound       chan []byte
 	EventHandlers map[string][]socksEventHandler
+	Id            string
 }
 
 type Msg struct {
-	Type    string `json:"type"`
-	Message string `json:"msg"`
+	Type    string      `json:"type"`
+	Message interface{} `json:"msg"`
 }
 
 // reader is started as a routine, it will continue to read data from
@@ -124,4 +126,23 @@ func (c *Conn) callHandler(msg Msg) {
 			f(msg)
 		}
 	}
+}
+
+func (c *Conn) SendPng(fileName string) error {
+	pngMsg, err := LoadPng(fileName)
+	if err != nil {
+		return err
+	}
+
+	msg := &Msg{
+		Type:    "png",
+		Message: pngMsg,
+	}
+
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	c.Outbound <- b
+	return nil
 }

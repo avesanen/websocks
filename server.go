@@ -1,10 +1,12 @@
 package websocks
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
+
+	"github.com/gorilla/websocket"
+	"github.com/zenazn/goji/web"
 )
 
 type Server struct {
@@ -19,8 +21,9 @@ func NewServer() *Server {
 	return s
 }
 
-func (s *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
-	log.Print("New websocket request.")
+func (s *Server) WebsocketHandler(webC web.C, w http.ResponseWriter, r *http.Request) {
+	id := webC.URLParams["id"]
+	log.Printf("New websocket request on id %s.", id)
 
 	// Only get requests
 	if r.Method != "GET" {
@@ -46,6 +49,7 @@ func (s *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	// Wrap the websocket into a Conn and start reader/writer routines
 	c := &Conn{}
 	c.ws = ws
+	c.Id = id
 	c.EventHandlers = make(map[string][]socksEventHandler)
 	c.Outbound = make(chan []byte)
 	c.Inbound = make(chan []byte)
@@ -66,7 +70,6 @@ func (s *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	})
-	c.On("test", func(msg Msg) { log.Printf("%v\n", msg) })
 }
 
 func (s *Server) OnConnect(f func(*Conn)) {
